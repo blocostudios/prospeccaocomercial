@@ -36,6 +36,8 @@ HTML = """<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BLOCO. — Prospecção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
   <style>
     @font-face {
       font-family: 'PPTelegraf';
@@ -97,12 +99,13 @@ HTML = """<!DOCTYPE html>
       z-index: 100;
     }
     .logo {
-      font-size: 1.1rem;
-      letter-spacing: 0.12em;
-      color: #fff;
-      text-transform: uppercase;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-weight: 900;
+      font-size: 1.5rem;
+      letter-spacing: -0.01em;
+      color: #fef3d0;
+      line-height: 1;
     }
-    .logo span { color: var(--accent); }
     .topbar-sub {
       font-size: 0.72rem;
       color: var(--text-muted);
@@ -299,7 +302,7 @@ HTML = """<!DOCTYPE html>
 <body>
 
   <div class="topbar">
-    <div class="logo">BLOCO<span>.</span></div>
+    <div class="logo">BLoCO.</div>
     <div class="topbar-sub">Sistema de Prospecção Outbound</div>
   </div>
 
