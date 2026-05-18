@@ -13,6 +13,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,6 +21,7 @@ load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent))
 
 app = FastAPI(title="Bloco Produções — Prospecção Outbound")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 ARQUIVO_PROSPECTS = Path("dados/prospects.json")
 ARQUIVO_AUDITORIA = Path("dados/audit_log.json")
@@ -33,201 +35,345 @@ HTML = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bloco Produções — Prospecção</title>
+  <title>BLOCO. — Prospecção</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    @font-face {
+      font-family: 'PPTelegraf';
+      src: url('/static/fonts/PPTelegrafRegular.otf') format('opentype');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'PPTelegraf';
+      src: url('/static/fonts/PPTelegrafRegularOblique.otf') format('opentype');
+      font-weight: 400;
+      font-style: oblique;
+    }
+    @font-face {
+      font-family: 'PPTelegraf';
+      src: url('/static/fonts/PPTelegrafRegularSlanted.otf') format('opentype');
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111;
+      --surface-2: #161616;
+      --border: #1e1e1e;
+      --border-hover: #333;
+      --text: #e2e2e2;
+      --text-muted: #555;
+      --text-dim: #333;
+      --accent: #c8f135;
+      --amber: #f0a500;
+      --green: #22c55e;
+      --red: #ef4444;
+    }
+
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0e0e0e;
-      color: #e8e8e8;
+      font-family: 'PPTelegraf', 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      padding: 32px 24px;
+      padding: 0;
     }
-    header {
-      max-width: 900px;
-      margin: 0 auto 40px;
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,10,.92);
+      backdrop-filter: blur(12px);
+      z-index: 100;
     }
-    header h1 {
-      font-size: 1.6rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
+    .logo {
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
       color: #fff;
-    }
-    header p {
-      margin-top: 6px;
-      font-size: 0.9rem;
-      color: #888;
-    }
-    .grid {
-      max-width: 900px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 16px;
-    }
-    .card {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      padding: 20px;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-    }
-    .card:hover { background: #222; border-color: #444; }
-    .card.running { border-color: #f0a500; }
-    .card.done { border-color: #22c55e; }
-    .card.error { border-color: #ef4444; }
-    .card-num {
-      font-size: 0.7rem;
-      color: #555;
-      font-weight: 600;
-      letter-spacing: 1px;
       text-transform: uppercase;
-      margin-bottom: 8px;
     }
-    .card-title { font-size: 1rem; font-weight: 600; color: #fff; }
-    .card-desc { font-size: 0.8rem; color: #666; margin-top: 4px; }
+    .logo span { color: var(--accent); }
+    .topbar-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ── LAYOUT ── */
+    .page { max-width: 1080px; margin: 0 auto; padding: 48px 40px 80px; }
+
+    .section-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+    }
+
+    /* ── CARDS ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 1px;
+    }
+
+    .card {
+      background: var(--surface);
+      padding: 28px 24px;
+      cursor: pointer;
+      transition: background .15s;
+      position: relative;
+      user-select: none;
+    }
+    .card:hover { background: var(--surface-2); }
+    .card.running { background: #110e00; }
+    .card.done { background: #071408; }
+    .card.error { background: #120606; }
+
+    .card-num {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 1.05rem;
+      color: #fff;
+      margin-bottom: 6px;
+      line-height: 1.2;
+    }
+    .card-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
     .card-status {
-      margin-top: 12px;
-      font-size: 0.75rem;
-      padding: 3px 8px;
-      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 20px;
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .card-status::before {
+      content: '';
       display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
     }
-    .status-idle { background: #1f1f1f; color: #555; }
-    .status-running { background: #3a2800; color: #f0a500; }
-    .status-done { background: #052e16; color: #22c55e; }
-    .status-error { background: #2d0a0a; color: #ef4444; }
+    .status-idle { color: var(--text-dim); }
+    .status-running { color: var(--amber); animation: pulse 1.2s infinite; }
+    .status-done { color: var(--green); }
+    .status-error { color: var(--red); }
 
-    .log-area {
-      max-width: 900px;
-      margin: 32px auto 0;
-      background: #111;
-      border: 1px solid #222;
-      border-radius: 12px;
-      padding: 20px;
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
     }
-    .log-area h2 { font-size: 0.8rem; color: #444; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+
+    /* ── LOG ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      margin-top: 24px;
+      overflow: hidden;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-header h2 {
+      font-size: 0.65rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
     #log {
-      font-family: 'Courier New', monospace;
-      font-size: 0.8rem;
-      color: #aaa;
-      white-space: pre-wrap;
-      max-height: 320px;
-      overflow-y: auto;
-      line-height: 1.6;
-    }
-    #log .ok { color: #22c55e; }
-    #log .err { color: #ef4444; }
-    #log .info { color: #60a5fa; }
-
-    .prospects-area {
-      max-width: 900px;
-      margin: 24px auto 0;
-      background: #111;
-      border: 1px solid #222;
-      border-radius: 12px;
-      padding: 20px;
-    }
-    .prospects-area h2 { font-size: 0.8rem; color: #444; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    th { text-align: left; color: #555; font-weight: 600; padding: 6px 10px; border-bottom: 1px solid #222; }
-    td { padding: 8px 10px; border-bottom: 1px solid #1a1a1a; vertical-align: middle; }
-    tr:hover td { background: #161616; }
-    .aprovado-toggle {
-      cursor: pointer;
-      padding: 3px 10px;
-      border-radius: 20px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
       font-size: 0.75rem;
-      border: none;
-      font-weight: 600;
+      color: #666;
+      white-space: pre-wrap;
+      max-height: 260px;
+      overflow-y: auto;
+      line-height: 1.7;
+      padding: 16px 20px;
     }
-    .aprovado-true { background: #052e16; color: #22c55e; }
-    .aprovado-false { background: #1f1f1f; color: #555; }
-    .refresh-btn {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #aaa;
-      padding: 6px 14px;
-      border-radius: 8px;
-      cursor: pointer;
+    #log .ok  { color: var(--green); }
+    #log .err { color: var(--red); }
+    #log .info { color: var(--accent); }
+
+    /* ── PROSPECTS TABLE ── */
+    .panel table {
+      width: 100%;
+      border-collapse: collapse;
       font-size: 0.8rem;
-      margin-left: 12px;
     }
-    .refresh-btn:hover { background: #222; }
+    th {
+      text-align: left;
+      color: var(--text-dim);
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      color: #aaa;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface-2); }
+    td strong { color: var(--text); font-weight: 400; }
+    td .site-url { color: var(--text-dim); font-size: 0.7rem; }
+
+    .btn-aprovar {
+      cursor: pointer;
+      padding: 4px 12px;
+      border-radius: 2px;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid;
+      font-family: 'PPTelegraf', sans-serif;
+      transition: all .15s;
+    }
+    .aprovado-true  { border-color: var(--green); color: var(--green); background: transparent; }
+    .aprovado-false { border-color: var(--text-dim); color: var(--text-dim); background: transparent; }
+    .aprovado-false:hover { border-color: var(--accent); color: var(--accent); }
+
+    .refresh-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 0.68rem;
+      font-family: 'PPTelegraf', sans-serif;
+      letter-spacing: 0.06em;
+      transition: border-color .15s;
+    }
+    .refresh-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+    }
+
+    @media (max-width: 720px) {
+      .topbar { padding: 16px 20px; }
+      .page { padding: 32px 20px 60px; }
+      .grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>BLOCO. — Sistema de Prospecção Outbound</h1>
-    <p>Execute as etapas em ordem. Marque empresas como aprovadas antes de enviar e-mails.</p>
-  </header>
 
-  <div class="grid">
-    <div class="card" onclick="rodar(1)" id="card-1">
-      <div class="card-num">Etapa 01</div>
-      <div class="card-title">Buscar Empresas</div>
-      <div class="card-desc">DuckDuckGo + Brasil API (Receita Federal)</div>
-      <span class="card-status status-idle" id="status-1">Aguardando</span>
-    </div>
-    <div class="card" onclick="rodar(2)" id="card-2">
-      <div class="card-num">Etapa 02</div>
-      <div class="card-title">Crawlear Sites</div>
-      <div class="card-desc">Extrai conteúdo de cada empresa encontrada</div>
-      <span class="card-status status-idle" id="status-2">Aguardando</span>
-    </div>
-    <div class="card" onclick="rodar(3)" id="card-3">
-      <div class="card-num">Etapa 03</div>
-      <div class="card-title">Analisar com IA</div>
-      <div class="card-desc">Análise audiovisual via Anthropic API</div>
-      <span class="card-status status-idle" id="status-3">Aguardando</span>
-    </div>
-    <div class="card" onclick="rodar(4)" id="card-4">
-      <div class="card-num">Etapa 04</div>
-      <div class="card-title">Gerar Apresentações</div>
-      <div class="card-desc">Cria .md personalizado por empresa</div>
-      <span class="card-status status-idle" id="status-4">Aguardando</span>
-    </div>
-    <div class="card" onclick="rodar(5)" id="card-5">
-      <div class="card-num">Etapa 05</div>
-      <div class="card-title">Enviar E-mails</div>
-      <div class="card-desc">Somente empresas marcadas como aprovadas</div>
-      <span class="card-status status-idle" id="status-5">Aguardando</span>
-    </div>
-    <div class="card" onclick="rodar(6)" id="card-6">
-      <div class="card-num">Etapa 06</div>
-      <div class="card-title">Ver Auditoria</div>
-      <div class="card-desc">Histórico de análises e envios</div>
-      <span class="card-status status-idle" id="status-6">Aguardando</span>
-    </div>
+  <div class="topbar">
+    <div class="logo">BLOCO<span>.</span></div>
+    <div class="topbar-sub">Sistema de Prospecção Outbound</div>
   </div>
 
-  <div class="log-area">
-    <h2>Log de execução</h2>
-    <div id="log">Clique em uma etapa para começar...</div>
-  </div>
+  <div class="page">
 
-  <div class="prospects-area">
-    <h2>
-      Empresas encontradas
-      <button class="refresh-btn" onclick="carregarProspects()">↻ Atualizar</button>
-    </h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Empresa</th>
-          <th>Setor</th>
-          <th>Município</th>
-          <th>E-mail</th>
-          <th>Aprovado</th>
-        </tr>
-      </thead>
-      <tbody id="prospects-tbody">
-        <tr><td colspan="5" style="color:#444;text-align:center;padding:20px">
-          Execute a Etapa 1 para carregar empresas.
-        </td></tr>
-      </tbody>
-    </table>
+    <div class="section-label">Fluxo de prospecção</div>
+
+    <div class="grid">
+      <div class="card" onclick="rodar(1)" id="card-1">
+        <div class="card-num">01</div>
+        <div class="card-title">Buscar Empresas</div>
+        <div class="card-desc">DuckDuckGo + Brasil API — Receita Federal</div>
+        <div class="card-status status-idle" id="status-1">Aguardando</div>
+      </div>
+      <div class="card" onclick="rodar(2)" id="card-2">
+        <div class="card-num">02</div>
+        <div class="card-title">Crawlear Sites</div>
+        <div class="card-desc">Extrai conteúdo de cada empresa encontrada</div>
+        <div class="card-status status-idle" id="status-2">Aguardando</div>
+      </div>
+      <div class="card" onclick="rodar(3)" id="card-3">
+        <div class="card-num">03</div>
+        <div class="card-title">Analisar com IA</div>
+        <div class="card-desc">Análise audiovisual via Anthropic API</div>
+        <div class="card-status status-idle" id="status-3">Aguardando</div>
+      </div>
+      <div class="card" onclick="rodar(4)" id="card-4">
+        <div class="card-num">04</div>
+        <div class="card-title">Gerar Apresentações</div>
+        <div class="card-desc">Cria documento personalizado por empresa</div>
+        <div class="card-status status-idle" id="status-4">Aguardando</div>
+      </div>
+      <div class="card" onclick="rodar(5)" id="card-5">
+        <div class="card-num">05</div>
+        <div class="card-title">Enviar E-mails</div>
+        <div class="card-desc">Somente empresas marcadas como aprovadas</div>
+        <div class="card-status status-idle" id="status-5">Aguardando</div>
+      </div>
+      <div class="card" onclick="rodar(6)" id="card-6">
+        <div class="card-num">06</div>
+        <div class="card-title">Auditoria</div>
+        <div class="card-desc">Histórico completo de análises e envios</div>
+        <div class="card-status status-idle" id="status-6">Aguardando</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Log de execução</h2>
+      </div>
+      <div id="log">Selecione uma etapa para iniciar...</div>
+    </div>
+
+    <div class="panel" style="margin-top:24px">
+      <div class="panel-header">
+        <h2>Empresas encontradas</h2>
+        <button class="refresh-btn" onclick="carregarProspects()">↻ Atualizar</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>Setor</th>
+            <th>Município</th>
+            <th>E-mail</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="prospects-tbody">
+          <tr><td colspan="5" class="empty-state">Execute a Etapa 01 para carregar empresas.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
   </div>
 
   <script>
@@ -242,9 +388,10 @@ HTML = """<!DOCTYPE html>
 
       const card = document.getElementById(`card-${etapa}`);
       const status = document.getElementById(`status-${etapa}`);
+      card.classList.remove('done','error');
       card.classList.add('running');
       status.className = 'card-status status-running';
-      status.textContent = 'Executando...';
+      status.textContent = 'Executando';
 
       const es = new EventSource(`/rodar/${etapa}`);
 
@@ -263,10 +410,10 @@ HTML = """<!DOCTYPE html>
         es.close();
         currentEtapa = null;
         card.classList.remove('running');
-        const sucesso = e.data === 'ok';
-        card.classList.add(sucesso ? 'done' : 'error');
-        status.className = `card-status status-${sucesso ? 'done' : 'error'}`;
-        status.textContent = sucesso ? 'Concluído' : 'Erro';
+        const ok = e.data === 'ok';
+        card.classList.add(ok ? 'done' : 'error');
+        status.className = `card-status status-${ok ? 'done' : 'error'}`;
+        status.textContent = ok ? 'Concluído' : 'Erro';
         if (etapa === 1) carregarProspects();
       });
 
@@ -276,7 +423,7 @@ HTML = """<!DOCTYPE html>
         card.classList.remove('running');
         card.classList.add('error');
         status.className = 'card-status status-error';
-        status.textContent = 'Erro de conexão';
+        status.textContent = 'Falha de conexão';
       };
     }
 
@@ -295,18 +442,21 @@ HTML = """<!DOCTYPE html>
       const lista = await resp.json();
       const tbody = document.getElementById('prospects-tbody');
       if (!lista.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="color:#444;text-align:center;padding:20px">Nenhuma empresa encontrada ainda.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma empresa encontrada ainda.</td></tr>';
         return;
       }
       tbody.innerHTML = lista.map(e => `
         <tr>
-          <td><strong>${e.nome}</strong><br><span style="color:#555;font-size:.75rem">${e.site || ''}</span></td>
-          <td>${e.setor || ''}</td>
-          <td>${e.municipio || ''}</td>
+          <td>
+            <strong>${e.nome}</strong>
+            ${e.site ? `<br><span class="site-url">${e.site}</span>` : ''}
+          </td>
+          <td>${e.setor || '—'}</td>
+          <td>${e.municipio || '—'}</td>
           <td>${e.email || '—'}</td>
           <td>
             <button
-              class="aprovado-toggle aprovado-${e.aprovado}"
+              class="btn-aprovar aprovado-${e.aprovado}"
               onclick="toggleAprovado(${JSON.stringify(e.nome)}, ${!e.aprovado})"
             >${e.aprovado ? '✓ Aprovado' : 'Aprovar'}</button>
           </td>
