@@ -106,6 +106,16 @@ body{font-family:'PP','Helvetica Neue',sans-serif;background:var(--bg);color:var
 .field input::placeholder{color:var(--t4)}
 .field select option{background:#111}
 
+/* ── TAG INPUT ── */
+.tag-input{width:100%;background:#0d0d0d;border:1px solid var(--bd2);border-radius:2px;min-height:46px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;cursor:text;transition:border-color .15s;box-sizing:border-box}
+.tag-input:focus-within{border-color:var(--ac-light)}
+.tag-chip{display:inline-flex;align-items:center;gap:6px;background:var(--ac);color:#fff;font-size:.78rem;font-family:'PP',sans-serif;padding:4px 10px 4px 12px;border-radius:2px;white-space:nowrap}
+.tag-chip-remove{background:none;border:none;color:#fff;cursor:pointer;padding:0;line-height:1;font-size:1rem;opacity:.6;display:flex;align-items:center}
+.tag-chip-remove:hover{opacity:1}
+.tag-text-input{background:none;border:none;outline:none;color:var(--t1);font-size:.9rem;font-family:'PP',sans-serif;min-width:140px;flex:1;padding:2px 4px}
+.tag-text-input::placeholder{color:var(--t4)}
+.tag-hint{font-size:.68rem;color:var(--t4);margin-top:5px}
+
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;font-size:.85rem;font-family:'PP',sans-serif;border-radius:2px;cursor:pointer;transition:all .15s;letter-spacing:.04em;border:none}
 .btn-primary{background:var(--ac);color:#fff;font-weight:600}
@@ -271,6 +281,68 @@ let selecionadas = new Set();
 let logAberto = false;
 let listasCache = [];
 
+/* ── Tag Input ── */
+const tagState = {};
+
+function initTagInput(id, placeholder) {
+  const container = document.getElementById('tag-' + id);
+  if (!container) return;
+  tagState[id] = [];
+
+  const inp = document.createElement('input');
+  inp.className = 'tag-text-input';
+  inp.placeholder = placeholder;
+  inp.setAttribute('data-tag-id', id);
+  container.appendChild(inp);
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(id, inp.value);
+    } else if (e.key === 'Backspace' && inp.value === '' && tagState[id].length) {
+      tagState[id].pop();
+      renderTags(id);
+    }
+  });
+  inp.addEventListener('blur', () => { if (inp.value.trim()) addTag(id, inp.value); });
+}
+
+function focusTag(id) {
+  const inp = document.querySelector(`#tag-${id} .tag-text-input`);
+  if (inp) inp.focus();
+}
+
+function addTag(id, raw) {
+  raw.split(',').map(v => v.trim()).filter(Boolean).forEach(val => {
+    if (!tagState[id].includes(val)) tagState[id].push(val);
+  });
+  renderTags(id);
+  const inp = document.querySelector(`#tag-${id} .tag-text-input`);
+  if (inp) inp.value = '';
+}
+
+function removeTag(id, idx) {
+  tagState[id].splice(idx, 1);
+  renderTags(id);
+}
+
+function renderTags(id) {
+  const container = document.getElementById('tag-' + id);
+  container.querySelectorAll('.tag-chip').forEach(c => c.remove());
+  const inp = container.querySelector('.tag-text-input');
+  tagState[id].forEach((tag, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${tag} <button class="tag-chip-remove" onclick="removeTag('${id}',${i})">×</button>`;
+    container.insertBefore(chip, inp);
+  });
+  inp.placeholder = tagState[id].length ? '' : (id === 'segmento' ? 'Ex: advocacia, clínica médica…' : 'Ex: Porto Alegre, Curitiba…');
+}
+
+function getTagValues(id) {
+  return tagState[id] ? [...tagState[id]] : [];
+}
+
 /* ── Steps ── */
 function abrirStep(n) {
   // Toggle: fecha se clicar no mesmo step aberto
@@ -302,11 +374,13 @@ function renderPainel1() {
     <div class="form-grid">
       <div class="field">
         <label>Segmento / Setor</label>
-        <input id="f-segmento" type="text" placeholder="Ex: advocacia, clínica médica, agência digital">
+        <div class="tag-input" id="tag-segmento" onclick="focusTag('segmento')"></div>
+        <div class="tag-hint">Digite e pressione Enter ou vírgula para adicionar</div>
       </div>
       <div class="field">
         <label>Cidade / Região</label>
-        <input id="f-cidade" type="text" placeholder="Ex: Porto Alegre, Sul do Brasil">
+        <div class="tag-input" id="tag-cidade" onclick="focusTag('cidade')"></div>
+        <div class="tag-hint">Digite e pressione Enter ou vírgula para adicionar</div>
       </div>
       <div class="field">
         <label>Porte da empresa</label>
@@ -368,6 +442,8 @@ function renderPainel1() {
       </div>
     </div>
   `;
+  initTagInput('segmento', 'Ex: advocacia, clínica médica…');
+  initTagInput('cidade', 'Ex: Porto Alegre, Curitiba…');
 }
 
 async function iniciarBusca() {
@@ -392,8 +468,8 @@ async function iniciarBusca() {
   limparLog();
 
   const params = new URLSearchParams({
-    segmento: document.getElementById('f-segmento').value,
-    cidade:   document.getElementById('f-cidade').value,
+    segmento: getTagValues('segmento').join(','),
+    cidade:   getTagValues('cidade').join(','),
     porte:    document.getElementById('f-porte').value,
     cnae:     document.getElementById('f-cnae').value,
     keywords: document.getElementById('f-keywords').value,
