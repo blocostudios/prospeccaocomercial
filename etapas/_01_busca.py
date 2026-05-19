@@ -70,7 +70,28 @@ DOMINIOS_IGNORADOS = {
     "duckduckgo.com", "wikipedia.org", "youtube.com", "facebook.com",
     "instagram.com", "linkedin.com", "twitter.com", "google.com",
     "jusbrasil.com.br", "escavador.com", "migalhas.com.br",
+    # portais de ranking, listas e diretórios
+    "reclameaqui.com.br", "yelp.com", "tripadvisor.com",
+    "clutch.co", "designrush.com", "sortlist.com.br", "sortlist.com",
+    "agenciamatcher.com.br", "infomoney.com.br", "exame.com",
+    "startse.com", "sebrae.com.br", "abramark.com.br",
+    "gupy.io", "catho.com.br", "vagas.com", "glassdoor.com",
+    "procon.com.br", "consumidor.gov.br",
 }
+
+# palavras no título que indicam artigo de ranking / lista — não é um site de empresa
+_TITULO_IGNORADO = re.compile(
+    r"\b(top\s*\d+|\d+\s+melhores|\d+\s+maiores|\d+\s+agências|\d+\s+escritórios"
+    r"|ranking|lista\s+d[eo]s?|as\s+mais|os\s+mais|confira|conheça"
+    r"|melhores\s+de|principais\s+de|guia\s+d[eo])\b",
+    re.IGNORECASE,
+)
+
+# padrões de URL que indicam post de blog / artigo
+_URL_IGNORADA = re.compile(
+    r"/(blog|artigo|noticias?|news|post|ranking|lista|guia|top[-_]?\d+)(/|$)",
+    re.IGNORECASE,
+)
 
 
 # ─── DuckDuckGo ───────────────────────────────────────────────────────────────
@@ -99,8 +120,14 @@ def buscar_duckduckgo(query: str) -> list[dict]:
             if any(d in dominio for d in DOMINIOS_IGNORADOS) or not dominio:
                 continue
 
+            titulo = titulo_tag.get_text(strip=True)
+            if _TITULO_IGNORADO.search(titulo):
+                continue
+            if _URL_IGNORADA.search(urlparse(href).path):
+                continue
+
             resultados.append({
-                "titulo": titulo_tag.get_text(strip=True),
+                "titulo": titulo,
                 "url": href,
             })
     except Exception as e:
