@@ -48,8 +48,8 @@ BUSCAS_POR_SETOR = {
     ],
 }
 
-MAX_RESULTADOS_POR_QUERY = 5
-MAX_EMPRESAS_POR_SETOR = 8
+MAX_RESULTADOS_POR_QUERY = 15
+MAX_EMPRESAS_POR_SETOR = 30
 TIMEOUT = 12
 DELAY_ENTRE_BUSCAS = 2
 
@@ -243,7 +243,7 @@ def executar():
             if encontradas >= MAX_EMPRESAS_POR_SETOR:
                 break
 
-            for cidade in CIDADES[:4]:
+            for cidade in CIDADES:
                 if encontradas >= MAX_EMPRESAS_POR_SETOR:
                     break
 
@@ -315,7 +315,7 @@ def buscar_com_parametros(params: dict, on_log=None, on_empresa=None) -> list:
     urls_vistas: set[str] = set()
 
     for segmento in segmentos:
-        for cidade in cidades[:4]:
+        for cidade in cidades[:10]:
             query = f"{segmento} {cidade}"
             if keywords:
                 query += f" {keywords}"
