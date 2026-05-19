@@ -26,32 +26,42 @@ BLOCO_BIO = os.getenv(
     "reels, cases de sucesso e conteúdo para redes sociais.",
 )
 
-TEMPLATE = """# Apresentação — {nome_empresa}
+TEMPLATE = """---
+empresa: {nome_empresa}
+setor: {setor}
+municipio: {municipio}
+data: {data}
+documento: apresentacao-bloco-producoes
+---
 
-**Destinatário:** {ponto_focal}
-**Data:** {data}
+# {nome_empresa}
+### Apresentação Personalizada — Bloco Produções
 
 ---
 
-## Sobre a {nome_empresa}
+## Diagnóstico Audiovisual
 
 {analise}
 
 ---
 
-## Quem somos — Bloco Produções
+## Bloco Produções
 
 {bloco_bio}
 
 ---
 
-## Plano de ação sugerido
+## Plano de Ação
 
 {plano_de_acao}
 
 ---
 
-*Apresentação gerada pela Bloco Produções. Para mais informações, entre em contato.*
+## Próximos Passos
+
+Entre em contato:
+- **E-mail:** comercial@blocoproducoes.com
+- **Apresentação preparada para:** {ponto_focal}
 """
 
 
@@ -111,6 +121,9 @@ def executar():
             print(f"  {nome} — apresentação já existe, pulando.")
             continue
 
+        setor = empresa.get("setor") or empresa.get("setor_receita", "")
+        municipio = empresa.get("municipio", "")
+
         print(f"  {nome} — gerando plano de ação...")
         try:
             plano = gerar_plano(cliente, nome, analise)
@@ -125,6 +138,8 @@ def executar():
             analise=analise,
             bloco_bio=BLOCO_BIO,
             plano_de_acao=plano,
+            setor=setor,
+            municipio=municipio,
         )
 
         arquivo_saida.write_text(conteudo, encoding="utf-8")

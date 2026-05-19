@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
 
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -195,6 +195,28 @@ tbody td strong{color:var(--t1);font-weight:400}
 .divisor{display:flex;align-items:center;gap:12px;color:var(--t4);font-size:.78rem;margin:4px 0}
 .divisor::before,.divisor::after{content:'';flex:1;height:1px;background:var(--bd)}
 
+/* ── ANALISE CARDS ── */
+.analise-card{background:var(--s2);border:1px solid var(--bd);border-radius:2px;padding:20px 24px;margin-bottom:12px}
+.analise-card-nome{font-size:.95rem;color:var(--t1);margin-bottom:4px}
+.analise-card-meta{font-size:.73rem;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+.analise-card-texto{font-size:.88rem;color:var(--t2);line-height:1.75;white-space:pre-wrap}
+
+/* ── EMAIL PANEL ── */
+.email-tabela-wrapper{overflow-x:auto;margin:20px 0}
+.email-tabela{width:100%;border-collapse:collapse}
+.email-tabela th{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);padding:10px 12px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+.email-tabela td{padding:10px 12px;border-bottom:1px solid var(--bd);vertical-align:middle;color:var(--t2)}
+.email-input-email{background:#0d0d0d;border:1px solid var(--bd2);border-radius:2px;padding:6px 10px;font-size:.83rem;font-family:'PP',sans-serif;color:var(--t1);outline:none;width:100%;min-width:180px}
+.email-input-email:focus{border-color:var(--ac-light)}
+.corpo-email-wrap{margin:20px 0}
+.corpo-email-wrap label{font-size:.73rem;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);display:block;margin-bottom:7px}
+.corpo-email-wrap textarea{width:100%;background:#0d0d0d;border:1px solid var(--bd2);border-radius:2px;padding:12px 14px;font-size:.88rem;font-family:'PP',sans-serif;color:var(--t1);outline:none;resize:vertical;min-height:180px;line-height:1.7}
+.corpo-email-wrap textarea:focus{border-color:var(--ac-light)}
+.status-badge{font-size:.75rem;padding:3px 10px;border-radius:2px;display:inline-block}
+.status-badge.ok{background:#1a3a1a;color:var(--green)}
+.status-badge.erro{background:#3a1a1a;color:var(--red)}
+.status-badge.enviando{background:#1a2a40;color:var(--ac-light)}
+
 @media(max-width:800px){
   .topbar{padding:16px 20px}
   .page{padding:24px 16px 60px}
@@ -362,6 +384,8 @@ function abrirStep(n) {
 
   if (n === 1) renderPainel1();
   else if (n === 2) renderPainel2();
+  else if (n === 3) renderPainel3();
+  else if (n === 5) renderPainel5();
   else renderPainelSimples(n);
 }
 
@@ -625,7 +649,7 @@ async function iniciarEtapa2() {
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({lista_id: listaId})
     });
-    if (!resp.ok) { alert('Erro ao preparar lista.'); return; }
+    if (!resp.ok) { const err = await resp.json(); alert('Erro: ' + (err.erro || 'lista não encontrada.')); return; }
   } else {
     const file = document.getElementById('input-upload').files[0];
     if (!file) { alert('Selecione um arquivo.'); return; }
@@ -656,8 +680,134 @@ function renderPainelSimples(n) {
   `;
 }
 
+/* ── Painel Etapa 3 ── */
+function renderPainel3() {
+  document.getElementById('painel').innerHTML = `
+    <div class="painel-title">Analisar com IA</div>
+    <div class="painel-desc">Para cada empresa com conteúdo capturado, a API da Anthropic gera uma análise de oportunidades audiovisuais personalizada. Salvo em dados/analyses.json.</div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="rodarEtapa(3, carregarAnalises)">Executar Etapa 03</button>
+    </div>
+    <div id="analises-resultado"></div>
+  `;
+  carregarAnalises();
+}
+
+async function carregarAnalises() {
+  const resp = await fetch('/analises');
+  const analises = await resp.json();
+  const div = document.getElementById('analises-resultado');
+  if (!div) return;
+  if (!analises.length) { div.innerHTML = '<p style="color:var(--t4);font-size:.85rem;margin-top:20px">Nenhuma análise disponível.</p>'; return; }
+  div.innerHTML = '<div style="margin-top:28px"><div style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3);margin-bottom:16px">Resultados — '+analises.length+' empresa(s)</div>' +
+    analises.map(a => `<div class="analise-card"><div class="analise-card-nome">${esc(a.empresa)}</div><div class="analise-card-texto">${esc(a.analise)}</div></div>`).join('') + '</div>';
+}
+
+/* ── Painel Etapa 5 ── */
+let empresasEmail = [];
+
+function renderPainel5() {
+  carregarListas().then(() => {
+    const opts = listasCache.map(l =>
+      `<option value="${l.id}">${esc(l.nome)} (${l.total} empresas)</option>`
+    ).join('');
+    const corpoDefault = `Olá!\n\nMeu nome é [SEU NOME] e faço parte da equipe da Bloco Produções, produtora audiovisual do Sul do Brasil.\n\nEstudei um pouco sobre a {empresa} e acredito que temos ideias interessantes de como a comunicação audiovisual pode amplificar a presença de vocês — seja com vídeo institucional, reels, cases ou conteúdo para redes sociais.\n\nPreparei uma apresentação personalizada que está em anexo.\n\nFico à disposição!\n\nAtenciosamente,\n[SEU NOME] — Bloco Produções`;
+    document.getElementById('painel').innerHTML = `
+      <div class="painel-title">Enviar E-mails</div>
+      <div class="painel-desc">Selecione uma lista, personalize o texto e anexe a apresentação em PDF para cada empresa.</div>
+      <div class="btn-row" style="margin-bottom:16px">
+        ${listasCache.length > 0
+          ? `<select id="sel-lista-email">${opts}</select>`
+          : `<span style="color:var(--t4);font-size:.85rem">Nenhuma lista salva. Execute a Etapa 1 primeiro.</span>`
+        }
+        ${listasCache.length > 0 ? `<button class="btn btn-ghost" onclick="carregarEmpresasEmail(document.getElementById('sel-lista-email').value)">Carregar empresas</button>` : ''}
+      </div>
+      <div class="corpo-email-wrap">
+        <label>Texto do e-mail</label>
+        <textarea id="corpo-email">${corpoDefault}</textarea>
+      </div>
+      <div id="empresas-email"></div>
+      <div id="status-envios"></div>
+    `;
+  });
+}
+
+async function carregarEmpresasEmail(listaId) {
+  const resp = await fetch('/listas');
+  const listas = await resp.json();
+  const lista = listas.find(l => l.id === listaId);
+  if (!lista) { alert('Lista não encontrada.'); return; }
+  empresasEmail = lista.empresas;
+  const div = document.getElementById('empresas-email');
+  if (!empresasEmail.length) { div.innerHTML = '<p style="color:var(--t4);font-size:.85rem">Nenhuma empresa nesta lista.</p>'; return; }
+  div.innerHTML = `
+    <div class="email-tabela-wrapper">
+      <table class="email-tabela">
+        <thead><tr>
+          <th style="width:36px"></th>
+          <th>Empresa</th>
+          <th>E-mail</th>
+          <th>Apresentação PDF</th>
+          <th>Ação</th>
+        </tr></thead>
+        <tbody>
+          ${empresasEmail.map((e, i) => `
+            <tr id="email-row-${i}">
+              <td><div class="cb-wrap"><input type="checkbox" checked id="cb-email-${i}"></div></td>
+              <td>${esc(e.nome)}</td>
+              <td><input class="email-input-email" type="email" id="email-dest-${i}" value="${esc(e.email||'')}"></td>
+              <td><input type="file" accept=".pdf" id="pdf-${i}"></td>
+              <td id="acao-${i}"><button class="btn btn-ghost btn-sm" onclick="enviarEmailEmpresa(${i})">Enviar</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-primary" onclick="enviarTodasSelecionadas()">Enviar para todas selecionadas</button>
+    </div>
+  `;
+}
+
+async function enviarEmailEmpresa(idx) {
+  const emp = empresasEmail[idx];
+  const emailInput = document.getElementById('email-dest-'+idx);
+  const corpo = document.getElementById('corpo-email').value;
+  const pdfInput = document.getElementById('pdf-'+idx);
+  const acaoCell = document.getElementById('acao-'+idx);
+
+  acaoCell.innerHTML = '<span class="status-badge enviando">Enviando…</span>';
+
+  const form = new FormData();
+  form.append('empresa', JSON.stringify(emp));
+  form.append('corpo', corpo);
+  if (pdfInput.files[0]) form.append('pdf', pdfInput.files[0]);
+
+  try {
+    const resp = await fetch('/etapa5/enviar-empresa', {method:'POST', body:form});
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      acaoCell.innerHTML = '<span class="status-badge ok">Enviado</span>';
+    } else {
+      acaoCell.innerHTML = `<span class="status-badge erro" title="${esc(data.erro||'')}">Erro</span>`;
+    }
+  } catch(e) {
+    acaoCell.innerHTML = '<span class="status-badge erro">Falha</span>';
+  }
+}
+
+async function enviarTodasSelecionadas() {
+  for (let i = 0; i < empresasEmail.length; i++) {
+    const cb = document.getElementById('cb-email-'+i);
+    if (cb && cb.checked) {
+      await enviarEmailEmpresa(i);
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+}
+
 /* ── Rodar Etapas via SSE ── */
-function rodarEtapa(n) {
+function rodarEtapa(n, onDone) {
   document.getElementById('step-'+n).classList.remove('done','error','active');
   document.getElementById('step-'+n).classList.add('running');
   setBadge(n, 'running', 'Executando');
@@ -675,6 +825,7 @@ function rodarEtapa(n) {
     document.getElementById('step-'+n).classList.add(ok ? 'done' : 'error');
     setBadge(n, ok ? 'done' : 'error', ok ? 'Concluído' : 'Erro');
     if (n === 2) carregarProspects();
+    if (ok && typeof onDone === 'function') onDone();
   });
 
   es.onerror = () => {
@@ -1033,6 +1184,14 @@ async def listar_prospects():
     if not ARQUIVO_PROSPECTS.exists():
         return JSONResponse([])
     return JSONResponse(json.loads(ARQUIVO_PROSPECTS.read_text(encoding="utf-8")))
+
+
+@app.get("/analises")
+async def listar_analises():
+    arq = Path("dados/analyses.json")
+    if not arq.exists():
+        return JSONResponse([])
+    return JSONResponse(json.loads(arq.read_text(encoding="utf-8")))
 
 
 @app.post("/prospects/aprovar")
