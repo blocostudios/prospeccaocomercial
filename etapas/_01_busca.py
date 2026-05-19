@@ -290,5 +290,73 @@ def executar():
     print('  "aprovado": true nas empresas que deseja prospectar.')
 
 
+def buscar_com_parametros(params: dict, on_log=None, on_empresa=None) -> list:
+    """
+    Busca empresas com parâmetros customizados fornecidos pelo usuário.
+    - params: dict com chaves opcionais: segmento, cidade, porte, cnae, keywords
+    - on_log(msg): callback para mensagens de progresso
+    - on_empresa(empresa): callback chamado para cada empresa encontrada
+    """
+    log = on_log or print
+
+    # Parseia listas separadas por vírgula
+    segmentos = [s.strip() for s in params.get("segmento", "").split(",") if s.strip()]
+    cidades   = [c.strip() for c in params.get("cidade", "").split(",")   if c.strip()]
+    keywords  = params.get("keywords", "").strip()
+    cnae      = params.get("cnae", "").strip()
+
+    # Defaults quando campos estão vazios
+    if not segmentos:
+        segmentos = ["empresa", "negócio", "prestadora de serviços"]
+    if not cidades:
+        cidades = CIDADES[:3]
+
+    prospects: list[dict] = []
+    urls_vistas: set[str] = set()
+
+    for segmento in segmentos:
+        for cidade in cidades[:4]:
+            query = f"{segmento} {cidade}"
+            if keywords:
+                query += f" {keywords}"
+            if cnae:
+                query += f" CNAE {cnae}"
+
+            log(f"Buscando: \"{query}\"...")
+            resultados = buscar_duckduckgo(query)
+            time.sleep(DELAY_ENTRE_BUSCAS)
+
+            for res in resultados:
+                dominio = urlparse(res["url"]).netloc
+                if dominio in urls_vistas or not dominio:
+                    continue
+                urls_vistas.add(dominio)
+
+                log(f"→ {res['titulo'][:60]}")
+
+                contatos = coletar_contatos_site(res["url"])
+
+                dados_rf = {}
+                if contatos.get("cnpj_raw"):
+                    raw = consultar_brasil_api(contatos["cnpj_raw"])
+                    dados_rf = extrair_dados_brasilapi(raw)
+                    if dados_rf:
+                        situacao = dados_rf.get("situacao", "")
+                        if situacao and "ATIVA" not in situacao.upper():
+                            log(f"  Empresa inativa ({situacao}) — ignorando.")
+                            continue
+                        log(f"  CNPJ: {dados_rf.get('cnpj')} — {dados_rf.get('nome_oficial')}")
+
+                empresa = montar_empresa(res["titulo"], res["url"], segmento, contatos, dados_rf)
+                empresa["aprovado"] = False
+
+                if on_empresa:
+                    on_empresa(empresa)
+
+                prospects.append(empresa)
+
+    return prospects
+
+
 if __name__ == "__main__":
     executar()
