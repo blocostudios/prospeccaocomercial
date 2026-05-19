@@ -1194,6 +1194,60 @@ async def listar_analises():
     return JSONResponse(json.loads(arq.read_text(encoding="utf-8")))
 
 
+@app.post("/etapa5/enviar-empresa")
+async def etapa5_enviar_empresa(
+    empresa: str = Form(...),
+    corpo: str = Form(...),
+    pdf: UploadFile = File(None),
+):
+    """Envia e-mail para uma empresa com texto customizado e PDF opcional."""
+    import base64
+    from email.mime.application import MIMEApplication
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    emp = json.loads(empresa)
+    nome = emp.get("nome", "")
+    email_dest = emp.get("email", "")
+
+    if not email_dest:
+        return JSONResponse({"erro": "empresa sem e-mail"}, status_code=400)
+
+    remetente = os.getenv("GMAIL_REMETENTE", "")
+    if not remetente:
+        return JSONResponse({"erro": "GMAIL_REMETENTE não configurado"}, status_code=500)
+
+    msg = MIMEMultipart()
+    msg["to"] = email_dest
+    msg["from"] = remetente
+    assunto = f"Uma ideia para {nome} — Bloco Produções"
+    msg["subject"] = assunto
+    msg.attach(MIMEText(corpo, "plain", "utf-8"))
+
+    if pdf and pdf.filename:
+        conteudo_pdf = await pdf.read()
+        parte = MIMEApplication(conteudo_pdf, Name=pdf.filename)
+        parte["Content-Disposition"] = f'attachment; filename="{pdf.filename}"'
+        msg.attach(parte)
+
+    try:
+        from etapas._05_email import autenticar_gmail
+        servico = autenticar_gmail()
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        servico.users().messages().send(userId="me", body={"raw": raw}).execute()
+
+        entrada = {"empresa": nome, "email": email_dest, "timestamp": datetime.now().isoformat(), "status": "enviado"}
+        arq_log = Path("dados/audit_log.json")
+        log = json.loads(arq_log.read_text(encoding="utf-8")) if arq_log.exists() else []
+        log.append(entrada)
+        arq_log.parent.mkdir(exist_ok=True)
+        arq_log.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"erro": str(e)}, status_code=500)
+
+
 @app.post("/prospects/aprovar")
 async def aprovar_prospect(request: Request):
     body = await request.json()
