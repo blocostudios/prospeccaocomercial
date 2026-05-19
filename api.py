@@ -60,7 +60,7 @@ HTML = r"""<!DOCTYPE html>
 :root{
   --bg:#090909;--s1:#111;--s2:#161616;--bd:#222;--bd2:#2e2e2e;
   --t1:#f0ede8;--t2:#c8c4bb;--t3:#96918a;--t4:#6b6762;
-  --ac:#c8f135;--amber:#f0a500;--green:#4ade80;--red:#f87171;
+  --ac:#001B72;--ac-light:#4a7aff;--amber:#f0a500;--green:#4ade80;--red:#f87171;
 }
 html{scroll-behavior:smooth}
 body{font-family:'PP','Helvetica Neue',sans-serif;background:var(--bg);color:var(--t1);font-size:15px;line-height:1.7;min-height:100vh}
@@ -85,7 +85,7 @@ body{font-family:'PP','Helvetica Neue',sans-serif;background:var(--bg);color:var
 .step-title{font-size:.88rem;color:var(--t1);line-height:1.3}
 .step-badge{display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--t4)}
 .step-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block}
-.step.active .step-badge{color:var(--ac)}
+.step.active .step-badge{color:var(--ac-light)}
 .step.done .step-badge{color:var(--green)}
 .step.error .step-badge{color:var(--red)}
 .step.running .step-badge{color:var(--amber);animation:pulse 1.2s infinite}
@@ -102,15 +102,15 @@ body{font-family:'PP','Helvetica Neue',sans-serif;background:var(--bg);color:var
 .form-grid .full{grid-column:1/-1}
 .field label{display:block;font-size:.73rem;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);margin-bottom:7px}
 .field input,.field select{width:100%;background:#0d0d0d;border:1px solid var(--bd2);border-radius:2px;padding:10px 14px;font-size:.93rem;font-family:'PP',sans-serif;color:var(--t1);outline:none;transition:border-color .15s}
-.field input:focus,.field select:focus{border-color:var(--ac)}
+.field input:focus,.field select:focus{border-color:var(--ac-light)}
 .field input::placeholder{color:var(--t4)}
 .field select option{background:#111}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;font-size:.85rem;font-family:'PP',sans-serif;border-radius:2px;cursor:pointer;transition:all .15s;letter-spacing:.04em;border:none}
-.btn-primary{background:var(--ac);color:#0a0a0a;font-weight:600}
-.btn-primary:hover{background:#d4f545}
-.btn-primary:disabled{background:#3a4a1a;color:#556020;cursor:not-allowed}
+.btn-primary{background:var(--ac);color:#fff;font-weight:600}
+.btn-primary:hover{background:#00257a}
+.btn-primary:disabled{background:#001040;color:#3a5478;cursor:not-allowed}
 .btn-ghost{background:transparent;border:1px solid var(--bd2);color:var(--t2)}
 .btn-ghost:hover{border-color:var(--t3);color:var(--t1)}
 .btn-danger{background:transparent;border:1px solid #3a1515;color:var(--red);font-size:.78rem;padding:6px 12px}
@@ -143,16 +143,16 @@ tbody td strong{color:var(--t1);font-weight:400}
 .salvar-lista p{font-size:.82rem;color:var(--t3);margin-bottom:16px}
 .salvar-row{display:flex;gap:12px;align-items:center}
 .salvar-row input{flex:1;background:#0d0d0d;border:1px solid var(--bd2);border-radius:2px;padding:10px 14px;font-size:.9rem;font-family:'PP',sans-serif;color:var(--t1);outline:none}
-.salvar-row input:focus{border-color:var(--ac)}
+.salvar-row input:focus{border-color:var(--ac-light)}
 
 /* ── ETAPA 2 PAINEL ── */
 .fonte-opcoes{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:2px;margin-bottom:24px}
 .fonte-opcao{background:var(--s1);padding:24px;cursor:pointer;transition:background .15s}
-.fonte-opcao.selected{background:var(--s2);outline:1px solid var(--ac)}
+.fonte-opcao.selected{background:var(--s2);outline:1px solid var(--ac-light)}
 .fonte-opcao h4{font-size:.85rem;color:var(--t1);margin-bottom:4px}
 .fonte-opcao p{font-size:.78rem;color:var(--t3);margin-bottom:16px;line-height:1.6}
 .fonte-opcao select,.fonte-opcao input[type=file]{width:100%;background:#0d0d0d;border:1px solid var(--bd2);border-radius:2px;padding:9px 12px;font-size:.85rem;font-family:'PP',sans-serif;color:var(--t1);outline:none}
-.fonte-opcao select:focus{border-color:var(--ac)}
+.fonte-opcao select:focus{border-color:var(--ac-light)}
 .upload-hint{font-size:.72rem;color:var(--t4);margin-top:8px}
 
 /* ── LOG ── */
@@ -163,7 +163,7 @@ tbody td strong{color:var(--t1);font-weight:400}
 #log{font-family:'SF Mono','Fira Code','Courier New',monospace;font-size:.78rem;color:var(--t3);white-space:pre-wrap;max-height:240px;overflow-y:auto;line-height:1.75;padding:16px 20px}
 #log .ok{color:var(--green)}
 #log .err{color:var(--red)}
-#log .info{color:var(--ac)}
+#log .info{color:var(--ac-light)}
 .log-hidden #log{display:none}
 
 /* ── LISTAS SALVAS ── */
