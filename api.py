@@ -59,7 +59,7 @@ HTML = r"""<!DOCTYPE html>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#090909;--s1:#111;--s2:#161616;--bd:#222;--bd2:#2e2e2e;
-  --t1:#eaeaea;--t2:#aaa;--t3:#666;--t4:#3a3a3a;
+  --t1:#f0ede8;--t2:#c8c4bb;--t3:#96918a;--t4:#6b6762;
   --ac:#c8f135;--amber:#f0a500;--green:#4ade80;--red:#f87171;
 }
 html{scroll-behavior:smooth}
