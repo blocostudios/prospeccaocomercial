@@ -694,13 +694,18 @@ function renderPainel3() {
 }
 
 async function carregarAnalises() {
-  const resp = await fetch('/analises');
-  const analises = await resp.json();
   const div = document.getElementById('analises-resultado');
   if (!div) return;
-  if (!analises.length) { div.innerHTML = '<p style="color:var(--t4);font-size:.85rem;margin-top:20px">Nenhuma análise disponível.</p>'; return; }
-  div.innerHTML = '<div style="margin-top:28px"><div style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3);margin-bottom:16px">Resultados — '+analises.length+' empresa(s)</div>' +
-    analises.map(a => `<div class="analise-card"><div class="analise-card-nome">${esc(a.empresa)}</div><div class="analise-card-texto">${esc(a.analise)}</div></div>`).join('') + '</div>';
+  try {
+    const resp = await fetch('/analises');
+    if (!resp.ok) { div.innerHTML = '<p style="color:var(--red);font-size:.85rem;margin-top:20px">Erro ao carregar análises.</p>'; return; }
+    const analises = await resp.json();
+    if (!analises.length) { div.innerHTML = '<p style="color:var(--t4);font-size:.85rem;margin-top:20px">Nenhuma análise disponível. Execute a etapa para gerar resultados.</p>'; return; }
+    div.innerHTML = '<div style="margin-top:28px"><div style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3);margin-bottom:16px">Resultados — '+analises.length+' empresa(s)</div>' +
+      analises.map(a => `<div class="analise-card"><div class="analise-card-nome">${esc(a.empresa)}</div><div class="analise-card-texto">${esc(a.analise)}</div></div>`).join('') + '</div>';
+  } catch(e) {
+    div.innerHTML = '<p style="color:var(--red);font-size:.85rem;margin-top:20px">Erro ao carregar análises: ' + e.message + '</p>';
+  }
 }
 
 /* ── Painel Etapa 5 ── */
@@ -1120,12 +1125,35 @@ async def etapa2_upload(file: UploadFile = File(...)):
 
 # ─── Execução das etapas (SSE) ────────────────────────────────────────────────
 
+class _StreamWriter:
+    """Substitui sys.stdout e envia cada linha ao SSE em tempo real."""
+    def __init__(self, fila: asyncio.Queue, loop: asyncio.AbstractEventLoop):
+        self._fila = fila
+        self._loop = loop
+        self._buf = ""
+
+    def write(self, text: str):
+        self._buf += text
+        while "\n" in self._buf:
+            linha, self._buf = self._buf.split("\n", 1)
+            if linha:
+                asyncio.run_coroutine_threadsafe(
+                    self._fila.put(("msg", linha)), self._loop
+                )
+
+    def flush(self):
+        if self._buf.strip():
+            asyncio.run_coroutine_threadsafe(
+                self._fila.put(("msg", self._buf)), self._loop
+            )
+            self._buf = ""
+
+
 def capturar_saida_etapa(etapa_num: int, loop: asyncio.AbstractEventLoop) -> asyncio.Queue:
     fila: asyncio.Queue = asyncio.Queue()
 
     def _rodar():
         import importlib
-        import io as _io
 
         modulo_map = {
             1: "etapas._01_busca",
@@ -1135,9 +1163,8 @@ def capturar_saida_etapa(etapa_num: int, loop: asyncio.AbstractEventLoop) -> asy
             5: "etapas._05_email",
             6: "etapas._06_auditoria",
         }
-        buffer = _io.StringIO()
         old_stdout = sys.stdout
-        sys.stdout = buffer
+        sys.stdout = _StreamWriter(fila, loop)
         resultado = "ok"
         try:
             mod = importlib.import_module(modulo_map[etapa_num])
@@ -1146,10 +1173,9 @@ def capturar_saida_etapa(etapa_num: int, loop: asyncio.AbstractEventLoop) -> asy
         except Exception as e:
             resultado = f"erro: {e}"
         finally:
+            sys.stdout.flush()
             sys.stdout = old_stdout
 
-        for linha in buffer.getvalue().splitlines():
-            asyncio.run_coroutine_threadsafe(fila.put(("msg", linha)), loop)
         asyncio.run_coroutine_threadsafe(fila.put(("done", resultado)), loop)
 
     threading.Thread(target=_rodar, daemon=True).start()
