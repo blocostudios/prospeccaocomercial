@@ -218,9 +218,20 @@ tbody td strong{color:var(--t1);font-weight:400}
 
 /* ── ANALISE CARDS ── */
 .analise-card{background:var(--s2);border:1px solid var(--bd);border-radius:2px;padding:20px 24px;margin-bottom:12px}
-.analise-card-nome{font-size:.95rem;color:var(--t1);margin-bottom:4px}
-.analise-card-meta{font-size:.73rem;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
-.analise-card-texto{font-size:.88rem;color:var(--t2);line-height:1.75;white-space:pre-wrap}
+.analise-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.analise-card-nome{font-size:.95rem;color:var(--t1)}
+.prioridade-badge{font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:2px;white-space:nowrap;font-weight:600}
+.prioridade-badge.alta{background:#001B72;color:#fff}
+.prioridade-badge.media{background:#4B585A;color:#fff}
+.prioridade-badge.baixa{background:var(--bd2);color:var(--t2)}
+.analise-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-bottom:14px}
+.analise-field label{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);display:block;margin-bottom:3px}
+.analise-field p{font-size:.83rem;color:var(--t2);line-height:1.6}
+.analise-field.full{grid-column:1/-1}
+.analise-card-texto{font-size:.85rem;color:var(--t2);line-height:1.75;white-space:pre-wrap;border-top:1px solid var(--bd);padding-top:14px;margin-top:4px}
+.analise-pessoa{font-size:.82rem;color:var(--t2);background:var(--bg);border:1px solid var(--bd);border-radius:2px;padding:8px 12px;margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap}
+.analise-pessoa span{display:flex;flex-direction:column;gap:2px}
+.analise-pessoa small{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--t3)}
 
 /* ── EMAIL PANEL ── */
 .email-tabela-wrapper{overflow-x:auto;margin:20px 0}
@@ -807,6 +818,31 @@ function renderPainel4() {
   `;
 }
 
+function renderAnaliseCard(a) {
+  const prio = (a.prioridade || '').toLowerCase().replace('é','e');
+  const prioLabel = a.prioridade || '—';
+  const pessoaHtml = (a.pessoa_chave || a.cargo || a.linkedin_contato) ? `
+    <div class="analise-pessoa">
+      ${a.pessoa_chave ? `<span><small>Pessoa-chave</small>${esc(a.pessoa_chave)}</span>` : ''}
+      ${a.cargo ? `<span><small>Cargo</small>${esc(a.cargo)}</span>` : ''}
+      ${a.linkedin_contato ? `<span><small>LinkedIn / Contato</small><a href="${esc(a.linkedin_contato)}" target="_blank" style="color:var(--ac);font-size:.8rem">${esc(a.linkedin_contato.replace('https://','').slice(0,50))}</a></span>` : ''}
+    </div>` : '';
+  return `<div class="analise-card">
+    <div class="analise-card-header">
+      <div class="analise-card-nome">${esc(a.empresa)}</div>
+      <span class="prioridade-badge ${prio}">${prioLabel}</span>
+    </div>
+    ${pessoaHtml}
+    <div class="analise-fields">
+      ${a.por_que_oportunidade ? `<div class="analise-field full"><label>Por que é uma oportunidade</label><p>${esc(a.por_que_oportunidade)}</p></div>` : ''}
+      ${a.dor_provavel ? `<div class="analise-field"><label>Dor provável</label><p>${esc(a.dor_provavel)}</p></div>` : ''}
+      ${a.servico_bloco ? `<div class="analise-field"><label>Serviço Bloco relevante</label><p>${esc(a.servico_bloco)}</p></div>` : ''}
+      ${a.abordagem_sugerida ? `<div class="analise-field full"><label>Abordagem sugerida</label><p>${esc(a.abordagem_sugerida)}</p></div>` : ''}
+    </div>
+    ${a.analise ? `<div class="analise-card-texto">${esc(a.analise)}</div>` : ''}
+  </div>`;
+}
+
 async function carregarAnalises() {
   const div = document.getElementById('analises-resultado');
   if (!div) return;
@@ -815,8 +851,16 @@ async function carregarAnalises() {
     if (!resp.ok) { div.innerHTML = '<p style="color:var(--red);font-size:.85rem;margin-top:20px">Erro ao carregar análises.</p>'; return; }
     const analises = await resp.json();
     if (!analises.length) { div.innerHTML = '<p style="color:var(--t4);font-size:.85rem;margin-top:20px">Nenhuma análise disponível. Execute a etapa para gerar resultados.</p>'; return; }
-    div.innerHTML = '<div style="margin-top:28px"><div style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3);margin-bottom:16px">Resultados — '+analises.length+' empresa(s)</div>' +
-      analises.map(a => `<div class="analise-card"><div class="analise-card-nome">${esc(a.empresa)}</div><div class="analise-card-texto">${esc(a.analise)}</div></div>`).join('') + '</div>';
+    const alta  = analises.filter(a => a.prioridade === 'Alta').length;
+    const media = analises.filter(a => a.prioridade === 'Média').length;
+    const baixa = analises.filter(a => a.prioridade === 'Baixa').length;
+    const header = `<div style="display:flex;gap:16px;align-items:center;margin-top:28px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3)">${analises.length} empresa(s) analisada(s)</div>
+      ${alta  ? `<span class="prioridade-badge alta">Alta: ${alta}</span>` : ''}
+      ${media ? `<span class="prioridade-badge media">Média: ${media}</span>` : ''}
+      ${baixa ? `<span class="prioridade-badge baixa">Baixa: ${baixa}</span>` : ''}
+    </div>`;
+    div.innerHTML = header + analises.map(renderAnaliseCard).join('');
   } catch(e) {
     div.innerHTML = '<p style="color:var(--red);font-size:.85rem;margin-top:20px">Erro ao carregar análises: ' + e.message + '</p>';
   }
