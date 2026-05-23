@@ -191,6 +191,27 @@ tbody td strong{color:var(--t1);font-weight:400}
 .etapa-simples{display:flex;flex-direction:column;gap:20px}
 .etapa-simples .etapa-info{font-size:.88rem;color:var(--t2);line-height:1.75;max-width:580px}
 
+/* ── LISTA ATIVA BANNER ── */
+.lista-ativa-banner{display:none;align-items:center;justify-content:space-between;gap:16px;background:var(--ac);color:#fff;padding:10px 20px;border-radius:2px;margin-bottom:16px;flex-wrap:wrap}
+.lista-ativa-left{display:flex;align-items:center;gap:10px}
+.lista-ativa-label{font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;opacity:.7}
+.lista-ativa-nome{font-size:.9rem;font-weight:600}
+.lista-ativa-total{font-size:.78rem;opacity:.75}
+.lista-ativa-banner .btn-ghost{border-color:rgba(255,255,255,.4);color:#fff;font-size:.75rem;padding:5px 12px}
+.lista-ativa-banner .btn-ghost:hover{border-color:#fff;background:rgba(255,255,255,.1)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--bg);border:1px solid var(--bd);border-radius:2px;padding:32px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-title{font-size:1rem;color:var(--t1);margin-bottom:6px}
+.modal-desc{font-size:.85rem;color:var(--t2);margin-bottom:24px;line-height:1.6}
+
+/* ── PAINEL LISTA INFO ── */
+.painel-lista-info{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:2px;padding:10px 16px;margin-bottom:24px;font-size:.83rem;color:var(--t2)}
+.painel-lista-info strong{color:var(--t1)}
+.painel-lista-info .trocar-link{margin-left:auto;font-size:.75rem;color:var(--ac);cursor:pointer;text-decoration:underline;white-space:nowrap}
+
 /* ── DIVISOR ── */
 .divisor{display:flex;align-items:center;gap:12px;color:var(--t4);font-size:.78rem;margin:4px 0}
 .divisor::before,.divisor::after{content:'';flex:1;height:1px;background:var(--bd)}
@@ -269,8 +290,34 @@ tbody td strong{color:var(--t1);font-weight:400}
     </div>
   </div>
 
+  <!-- Banner lista ativa -->
+  <div class="lista-ativa-banner" id="lista-ativa-banner">
+    <div class="lista-ativa-left">
+      <span class="lista-ativa-label">Lista ativa</span>
+      <span class="lista-ativa-nome" id="lista-ativa-nome">—</span>
+      <span class="lista-ativa-total" id="lista-ativa-total"></span>
+    </div>
+    <button class="btn btn-ghost" onclick="abrirTrocarLista()">↕ Trocar lista</button>
+  </div>
+
   <!-- Painel dinâmico -->
   <div class="painel" id="painel"></div>
+
+  <!-- Modal trocar lista -->
+  <div class="modal-overlay" id="modal-overlay" onclick="fecharModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div class="modal-title">Trocar lista ativa</div>
+      <div class="modal-desc">A lista escolhida será usada em todas as próximas etapas desta sessão.</div>
+      <div class="field" style="margin-bottom:24px">
+        <label>Selecione a lista</label>
+        <select id="modal-sel-lista"></select>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="confirmarTrocarLista()">Confirmar</button>
+        <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Log -->
   <div class="log-panel" id="log-panel">
@@ -302,6 +349,55 @@ let empresasEncontradas = [];
 let selecionadas = new Set();
 let logAberto = false;
 let listasCache = [];
+let listaAtiva = null; // {id, nome, total, empresas:[]}
+
+/* ── Lista Ativa ── */
+function setListaAtiva(lista) {
+  listaAtiva = lista;
+  const banner = document.getElementById('lista-ativa-banner');
+  if (!lista) { banner.style.display = 'none'; return; }
+  banner.style.display = 'flex';
+  document.getElementById('lista-ativa-nome').textContent = lista.nome;
+  document.getElementById('lista-ativa-total').textContent = '— ' + lista.total + ' empresa(s)';
+}
+
+function listaAtivaInfo() {
+  if (!listaAtiva) return `<div class="painel-lista-info" style="background:#fff3cd;border-color:#d4a800">
+    Nenhuma lista ativa. <span class="trocar-link" onclick="abrirStep(2)">Escolher lista na Etapa 2 →</span></div>`;
+  return `<div class="painel-lista-info">
+    <strong>${esc(listaAtiva.nome)}</strong>&nbsp;·&nbsp;${listaAtiva.total} empresa(s)
+    <span class="trocar-link" onclick="abrirTrocarLista()">Não usar mais essa lista</span>
+  </div>`;
+}
+
+async function abrirTrocarLista() {
+  await carregarListas();
+  const sel = document.getElementById('modal-sel-lista');
+  sel.innerHTML = listasCache.map(l =>
+    `<option value="${l.id}"${listaAtiva && l.id===listaAtiva.id?' selected':''}>${esc(l.nome)} (${l.total} emp.)</option>`
+  ).join('');
+  if (!listasCache.length) { sel.innerHTML = '<option disabled>Nenhuma lista salva</option>'; }
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function fecharModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+async function confirmarTrocarLista() {
+  const sel = document.getElementById('modal-sel-lista');
+  if (!sel.value) return;
+  const lista = listasCache.find(l => l.id === sel.value);
+  if (!lista) return;
+  const resp = await fetch('/etapa2/preparar', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({lista_id: lista.id})
+  });
+  if (!resp.ok) { alert('Erro ao trocar lista.'); return; }
+  setListaAtiva(lista);
+  fecharModal();
+  if (stepAtivo) abrirStep(stepAtivo);
+}
 
 /* ── Tag Input ── */
 const tagState = {};
@@ -385,6 +481,7 @@ function abrirStep(n) {
   if (n === 1) renderPainel1();
   else if (n === 2) renderPainel2();
   else if (n === 3) renderPainel3();
+  else if (n === 4) renderPainel4();
   else if (n === 5) renderPainel5();
   else renderPainelSimples(n);
 }
@@ -650,6 +747,8 @@ async function iniciarEtapa2() {
       body: JSON.stringify({lista_id: listaId})
     });
     if (!resp.ok) { const err = await resp.json(); alert('Erro: ' + (err.erro || 'lista não encontrada.')); return; }
+    const lista = listasCache.find(l => l.id === listaId);
+    if (lista) setListaAtiva(lista);
   } else {
     const file = document.getElementById('input-upload').files[0];
     if (!file) { alert('Selecione um arquivo.'); return; }
@@ -657,6 +756,8 @@ async function iniciarEtapa2() {
     form.append('file', file);
     const resp = await fetch('/etapa2/upload', {method:'POST', body:form});
     if (!resp.ok) { alert('Erro ao processar arquivo.'); return; }
+    const data = await resp.json();
+    setListaAtiva({id:'_upload', nome: file.name, total: data.total || '?', empresas:[]});
   }
   rodarEtapa(2);
 }
@@ -684,13 +785,26 @@ function renderPainelSimples(n) {
 function renderPainel3() {
   document.getElementById('painel').innerHTML = `
     <div class="painel-title">Analisar com IA</div>
-    <div class="painel-desc">Para cada empresa com conteúdo capturado, a API da Anthropic gera uma análise de oportunidades audiovisuais personalizada. Salvo em dados/analyses.json.</div>
+    ${listaAtivaInfo()}
+    <div class="painel-desc">A API da Anthropic analisa cada empresa e identifica oportunidades audiovisuais personalizadas.</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="rodarEtapa(3, carregarAnalises)">Executar Etapa 03</button>
     </div>
     <div id="analises-resultado"></div>
   `;
   carregarAnalises();
+}
+
+/* ── Painel Etapa 4 ── */
+function renderPainel4() {
+  document.getElementById('painel').innerHTML = `
+    <div class="painel-title">Gerar Apresentações</div>
+    ${listaAtivaInfo()}
+    <div class="painel-desc">Cria um documento .md personalizado por empresa com análise, bio da Bloco Produções e plano de ação. Salvo em /apresentacoes/.</div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="rodarEtapa(4)">Executar Etapa 04</button>
+    </div>
+  `;
 }
 
 async function carregarAnalises() {
@@ -712,38 +826,29 @@ async function carregarAnalises() {
 let empresasEmail = [];
 
 function renderPainel5() {
-  carregarListas().then(() => {
-    const opts = listasCache.map(l =>
-      `<option value="${l.id}">${esc(l.nome)} (${l.total} empresas)</option>`
-    ).join('');
-    const corpoDefault = `Olá!\n\nMeu nome é [SEU NOME] e faço parte da equipe da Bloco Produções, produtora audiovisual do Sul do Brasil.\n\nEstudei um pouco sobre a {empresa} e acredito que temos ideias interessantes de como a comunicação audiovisual pode amplificar a presença de vocês — seja com vídeo institucional, reels, cases ou conteúdo para redes sociais.\n\nPreparei uma apresentação personalizada que está em anexo.\n\nFico à disposição!\n\nAtenciosamente,\n[SEU NOME] — Bloco Produções`;
-    document.getElementById('painel').innerHTML = `
-      <div class="painel-title">Enviar E-mails</div>
-      <div class="painel-desc">Selecione uma lista, personalize o texto e anexe a apresentação em PDF para cada empresa.</div>
-      <div class="btn-row" style="margin-bottom:16px">
-        ${listasCache.length > 0
-          ? `<select id="sel-lista-email">${opts}</select>`
-          : `<span style="color:var(--t4);font-size:.85rem">Nenhuma lista salva. Execute a Etapa 1 primeiro.</span>`
-        }
-        ${listasCache.length > 0 ? `<button class="btn btn-ghost" onclick="carregarEmpresasEmail(document.getElementById('sel-lista-email').value)">Carregar empresas</button>` : ''}
-      </div>
-      <div class="corpo-email-wrap">
-        <label>Texto do e-mail</label>
-        <textarea id="corpo-email">${corpoDefault}</textarea>
-      </div>
-      <div id="empresas-email"></div>
-      <div id="status-envios"></div>
-    `;
-  });
+  const corpoDefault = `Olá!\n\nMeu nome é [SEU NOME] e faço parte da equipe da Bloco Produções, produtora audiovisual do Sul do Brasil.\n\nEstudei um pouco sobre a {empresa} e acredito que temos ideias interessantes de como a comunicação audiovisual pode amplificar a presença de vocês — seja com vídeo institucional, reels, cases ou conteúdo para redes sociais.\n\nPreparei uma apresentação personalizada que está em anexo.\n\nFico à disposição!\n\nAtenciosamente,\n[SEU NOME] — Bloco Produções`;
+  document.getElementById('painel').innerHTML = `
+    <div class="painel-title">Enviar E-mails</div>
+    ${listaAtivaInfo()}
+    <div class="painel-desc">Personalize o texto e anexe a apresentação em PDF para cada empresa.</div>
+    <div class="corpo-email-wrap">
+      <label>Texto do e-mail</label>
+      <textarea id="corpo-email">${corpoDefault}</textarea>
+    </div>
+    <div id="empresas-email"></div>
+    <div id="status-envios"></div>
+  `;
+  if (listaAtiva && listaAtiva.id !== '_upload' && listaAtiva.empresas && listaAtiva.empresas.length) {
+    empresasEmail = listaAtiva.empresas;
+    renderTabelaEmail();
+  } else if (listaAtiva) {
+    carregarEmpresasEmail(listaAtiva.id);
+  }
 }
 
-async function carregarEmpresasEmail(listaId) {
-  const resp = await fetch('/listas');
-  const listas = await resp.json();
-  const lista = listas.find(l => l.id === listaId);
-  if (!lista) { alert('Lista não encontrada.'); return; }
-  empresasEmail = lista.empresas;
+function renderTabelaEmail() {
   const div = document.getElementById('empresas-email');
+  if (!div) return;
   if (!empresasEmail.length) { div.innerHTML = '<p style="color:var(--t4);font-size:.85rem">Nenhuma empresa nesta lista.</p>'; return; }
   div.innerHTML = `
     <div class="email-tabela-wrapper">
@@ -772,6 +877,20 @@ async function carregarEmpresasEmail(listaId) {
       <button class="btn btn-primary" onclick="enviarTodasSelecionadas()">Enviar para todas selecionadas</button>
     </div>
   `;
+}
+
+async function carregarEmpresasEmail(listaId) {
+  if (!listaId || listaId === '_upload') {
+    const resp = await fetch('/prospects');
+    empresasEmail = await resp.json();
+  } else {
+    const resp = await fetch('/listas');
+    const listas = await resp.json();
+    const lista = listas.find(l => l.id === listaId);
+    if (!lista) { return; }
+    empresasEmail = lista.empresas;
+  }
+  renderTabelaEmail();
 }
 
 async function enviarEmailEmpresa(idx) {
