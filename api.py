@@ -811,7 +811,7 @@ function renderPainel4() {
   document.getElementById('painel').innerHTML = `
     <div class="painel-title">Gerar Apresentações</div>
     ${listaAtivaInfo()}
-    <div class="painel-desc">Cria um documento .md personalizado por empresa com análise, bio da Bloco Produções e plano de ação. Salvo em /apresentacoes/.</div>
+    <div class="painel-desc">Gera uma apresentação HTML por empresa — estilizada com a identidade da Bloco, com diagnóstico, plano de ação e abordagem sugerida. Abra no navegador e exporte como PDF para anexar nos e-mails.</div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="rodarEtapa(4)">Executar Etapa 04</button>
     </div>
