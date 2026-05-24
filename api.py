@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from fastapi import FastAPI, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
@@ -811,11 +811,38 @@ function renderPainel4() {
   document.getElementById('painel').innerHTML = `
     <div class="painel-title">Gerar Apresentações</div>
     ${listaAtivaInfo()}
-    <div class="painel-desc">Gera uma apresentação HTML por empresa — estilizada com a identidade da Bloco, com diagnóstico, plano de ação e abordagem sugerida. Abra no navegador e exporte como PDF para anexar nos e-mails.</div>
+    <div class="painel-desc">Gera uma apresentação HTML por empresa — estilizada com a identidade da Bloco, com análise, diagnóstico, plano de ação e abordagem sugerida. Use o botão "Baixar PDF" dentro de cada apresentação para download automático.</div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="rodarEtapa(4)">Executar Etapa 04</button>
+      <button class="btn btn-primary" onclick="rodarEtapa(4, carregarApresentacoes)">Executar Etapa 04</button>
     </div>
+    <div id="apresentacoes-lista" style="margin-top:28px"></div>
   `;
+  carregarApresentacoes();
+}
+
+async function carregarApresentacoes() {
+  const div = document.getElementById('apresentacoes-lista');
+  if (!div) return;
+  try {
+    const resp = await fetch('/apresentacoes');
+    if (!resp.ok) return;
+    const lista = await resp.json();
+    if (!lista.length) { div.innerHTML = '<p style="color:var(--t4);font-size:.85rem">Nenhuma apresentação gerada ainda.</p>'; return; }
+    div.innerHTML = `
+      <div style="font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--t3);margin-bottom:12px">${lista.length} apresentação(ões) gerada(s)</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${lista.map(a => `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--s2);border:1px solid var(--bd);border-radius:2px;padding:12px 16px">
+            <span style="font-size:.88rem;color:var(--t1)">${esc(a.nome)}</span>
+            <div class="btn-row">
+              <a href="/apresentacoes/${esc(a.arquivo)}" target="_blank" class="btn btn-ghost btn-sm">Abrir</a>
+              <a href="/apresentacoes/${esc(a.arquivo)}?pdf=1" target="_blank" class="btn btn-primary btn-sm">↓ PDF</a>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch(e) {}
 }
 
 function renderAnaliseCard(a) {
@@ -1381,6 +1408,24 @@ async def listar_analises():
     if not arq.exists():
         return JSONResponse([])
     return JSONResponse(json.loads(arq.read_text(encoding="utf-8")))
+
+
+@app.get("/apresentacoes")
+async def listar_apresentacoes():
+    PASTA_APRESENTACOES.mkdir(exist_ok=True)
+    arquivos = sorted(PASTA_APRESENTACOES.glob("*.html"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return JSONResponse([
+        {"nome": p.stem.replace("-", " ").replace("_", " ").title(), "arquivo": p.name}
+        for p in arquivos
+    ])
+
+
+@app.get("/apresentacoes/{filename}")
+async def servir_apresentacao(filename: str):
+    caminho = PASTA_APRESENTACOES / filename
+    if not caminho.exists() or caminho.suffix != ".html":
+        return JSONResponse({"erro": "não encontrado"}, status_code=404)
+    return FileResponse(caminho, media_type="text/html")
 
 
 @app.post("/etapa5/enviar-empresa")

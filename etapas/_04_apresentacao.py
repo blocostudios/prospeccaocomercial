@@ -48,8 +48,6 @@ def _html(empresa: dict, analise_dados: dict, plano: list[str], hoje: str) -> st
 
     plano_html = "\n".join(f"<li>{item.lstrip('- ').strip()}</li>" for item in plano if item.strip())
 
-    prio_color = {"Alta": "#001B72", "Média": "#4B585A", "Baixa": "#9AACAE"}.get(prioridade, "#4B585A")
-
     def p(text: str) -> str:
         """Converte texto com quebras de linha em parágrafos HTML."""
         if not text:
@@ -62,6 +60,7 @@ def _html(empresa: dict, analise_dados: dict, plano: list[str], hoje: str) -> st
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bloco Produções — {nome}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 @import url('https://fonts.cdnfonts.com/css/pp-telegraf');
 *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
@@ -112,18 +111,36 @@ p:last-child{{margin-bottom:0}}
 .abordagem-box p{{color:rgba(255,255,255,.85);font-size:.9rem}}
 
 /* RODAPÉ */
-footer{{background:var(--t1);color:var(--bg);padding:32px 40px;text-align:center;
-  font-size:.78rem;letter-spacing:.06em}}
-footer strong{{color:#fff}}
+footer{{background:var(--t1);color:var(--bg);padding:40px 64px;font-size:.82rem;letter-spacing:.04em}}
+footer .footer-grid{{display:grid;grid-template-columns:1fr 1fr;gap:24px 48px;max-width:560px}}
+footer .footer-item label{{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;opacity:.5;display:block;margin-bottom:4px}}
+footer .footer-item a,footer .footer-item span{{color:#fff;text-decoration:none}}
+footer .footer-bottom{{margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,.12);font-size:.72rem;opacity:.45}}
+
+/* BOTÃO PDF */
+.btn-pdf{{position:fixed;bottom:28px;right:28px;background:var(--ac);color:#fff;border:none;
+  padding:12px 22px;border-radius:2px;font-size:.82rem;font-family:'PP Telegraf','Helvetica Neue',sans-serif;
+  cursor:pointer;letter-spacing:.06em;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999;
+  display:flex;align-items:center;gap:8px}}
+.btn-pdf:hover{{background:#00257a}}
+.btn-pdf svg{{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}}
 
 /* PRINT */
 @media print{{
-  .capa{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  .capa,.abordagem-box,footer{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  .btn-pdf{{display:none}}
   body{{font-size:13px}}
 }}
 </style>
 </head>
 <body>
+
+<button class="btn-pdf" onclick="baixarPDF()" id="btn-pdf">
+  <svg viewBox="0 0 24 24"><path d="M12 16l-4-4h3V4h2v8h3l-4 4z"/><path d="M4 18h16v2H4z"/></svg>
+  Baixar PDF
+</button>
+
+<div id="conteudo-apresentacao">
 
 <div class="capa">
   <div class="capa-label">Apresentação Personalizada — Bloco Produções</div>
@@ -139,6 +156,16 @@ footer strong{{color:#fff}}
 
 <div class="page">
 
+  <section>
+    <div class="sec-label">Quem somos</div>
+    {p(BLOCO_BIO)}
+  </section>
+
+  <section>
+    <div class="sec-label">Análise</div>
+    {p(analise_texto)}
+  </section>
+
   {"" if not (dor or servico) else f'''
   <section>
     <div class="sec-label">Diagnóstico</div>
@@ -148,16 +175,6 @@ footer strong{{color:#fff}}
     </div>
   </section>
   '''}
-
-  <section>
-    <div class="sec-label">Análise</div>
-    {p(analise_texto)}
-  </section>
-
-  <section>
-    <div class="sec-label">Quem somos</div>
-    {p(BLOCO_BIO)}
-  </section>
 
   <section>
     <div class="sec-label">Plano de Ação</div>
@@ -174,10 +191,54 @@ footer strong{{color:#fff}}
 </div>
 
 <footer>
-  <strong>Bloco Produções</strong> · comercial@blocoproducoes.com<br>
-  Apresentação gerada em {hoje} · Confidencial
+  <div class="footer-grid">
+    <div class="footer-item">
+      <label>WhatsApp</label>
+      <a href="https://wa.me/5541984993028">(41) 98499-3028</a>
+    </div>
+    <div class="footer-item">
+      <label>E-mail</label>
+      <a href="mailto:comercial@blocoproducoes.com">comercial@blocoproducoes.com</a>
+    </div>
+    <div class="footer-item">
+      <label>Instagram</label>
+      <a href="https://instagram.com/bloco.studios" target="_blank">@bloco.studios</a>
+    </div>
+    <div class="footer-item">
+      <label>Diretor de Operações</label>
+      <span>Matheus Gobbi</span>
+    </div>
+  </div>
+  <div class="footer-bottom">Bloco Produções · Apresentação gerada em {hoje} · Confidencial</div>
 </footer>
 
+</div><!-- /conteudo-apresentacao -->
+
+<script>
+function baixarPDF() {{
+  const btn = document.getElementById('btn-pdf');
+  btn.textContent = 'Gerando…';
+  btn.disabled = true;
+  const el = document.getElementById('conteudo-apresentacao');
+  const opt = {{
+    margin: 0,
+    filename: '{nome.replace("'", "").replace('"', '')}.pdf',
+    image: {{type:'jpeg', quality:0.95}},
+    html2canvas: {{scale:2, useCORS:true, logging:false}},
+    jsPDF: {{unit:'mm', format:'a4', orientation:'portrait'}},
+    pagebreak: {{mode:['avoid-all','css','legacy']}},
+  }};
+  html2pdf().set(opt).from(el).save().then(() => {{
+    btn.textContent = 'Baixar PDF';
+    btn.disabled = false;
+  }});
+}}
+
+// auto-download se ?pdf=1 na URL
+if (new URLSearchParams(window.location.search).get('pdf') === '1') {{
+  window.addEventListener('load', () => setTimeout(baixarPDF, 800));
+}}
+</script>
 </body>
 </html>"""
 
